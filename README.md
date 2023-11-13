@@ -1,1 +1,1 @@
-# CMBclusterlensing
+Code for generating realizations of CMB maps lensed by a galaxy cluster.  Run sim_cmb_cluster_lens.py to generate a realization.  Look at this file's main function for an example of generation.
