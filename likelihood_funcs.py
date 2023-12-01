@@ -17,7 +17,12 @@ def get_cov_element(ell, C_ell, ang_sep):
 
 #Exact likelihood. We use unlensed CMB power spectrum to calculate covariance elements
 def lnlikelihood(params, cluster_settings, map_settings, obs_settings, spectra, \
-                        cosmo_params, likelihood_info, obs_data, print_output = False):
+                        cosmo_params, likelihood_info, obs_data, print_output = False, use_pcs = False):
+    if use_pcs:
+        N_pcs = 5
+        return lnlikelihood_pcs(params, N_pcs, cluster_settings, map_settings, obs_settings, spectra, \
+                        cosmo_params, likelihood_info, obs_data, print_output = print_output)
+
     x_map, y_map = map_funcs.get_theta_maps(map_settings)
     cluster_kappa = sim.generate_cluster_kappa(params, map_settings, cluster_settings, cosmo_params)
     Dx, Dy = lensing_funcs.get_deflection_from_kappa(cluster_kappa, map_settings)
@@ -43,3 +48,25 @@ def lnlikelihood(params, cluster_settings, map_settings, obs_settings, spectra, 
         lnlikelihood =  term1 + term2 #up to additive factors that don't depend on params
 
     return lnlikelihood, term1, term2
+
+
+def lnlikelihood_pcs(params, N_pc, cluster_settings, map_settings, obs_settings, spectra, \
+                        cosmo_params, likelihood_info, obs_data, print_output = False):
+    #compute likelihood by integrating over principal component amplitudes, using the first N_pc components
+    x_map, y_map = map_funcs.get_theta_maps(map_settings)
+    cluster_kappa = sim.generate_cluster_kappa(params, map_settings, cluster_settings, cosmo_params)
+    Dx, Dy = lensing_funcs.get_deflection_from_kappa(cluster_kappa, map_settings)
+
+    cov_interp_func = likelihood_info['cov_interp_func']
+    angsep_mat = map_funcs.get_angsep_mat(x_map, y_map, Dx, Dy)
+    #print("like M200 = ", params[0])
+    #print("var Dx = ", np.var(Dx))
+    cov_cmb = cov_interp_func(angsep_mat)
+
+    #Determine principal components of unlensed CMB
+    uu, vv = np.linalg.eig(cov_cmb)
+
+    noise_var_muk2 = (obs_settings['noise_mukarcmin'] / map_settings['pix_size_arcmin'])**2
+
+    grid_res = 100
+

@@ -213,7 +213,7 @@ def get_cluster_settings(cosmo_astropy, z_cluster, cosmo_params):
     return cluster_settings
 
 #Do all calculations to prepare for analysis, fixing cluster redshift
-def prepare_analysis(z_cluster, obs_type = 'spt3g_nobeam', prep_likelihood = False, make_plots = False):
+def prepare_analysis(z_cluster, obs_type = 'spt3g_nobeam', prep_likelihood = False, make_plots = False, N_pix = 16, pix_size_arcmin = 0.5):
     cosmo_params_baseline = get_baseline_cosmo_params()
     #Add in additional derived parameters
     cosmo_params = update_cosmo_params(cosmo_params_baseline, z_cluster)
@@ -221,7 +221,7 @@ def prepare_analysis(z_cluster, obs_type = 'spt3g_nobeam', prep_likelihood = Fal
     cosmo_astropy = get_cosmo_astropy(cosmo_params)
     
     #resolution settings for map and additional filtering
-    map_settings = {'N_pix': 16, 'pix_size_arcmin': 2.0, 'lmin': 2, 'lmax': 1.0e10, 'map_center_x_arcmin': 0, 'map_center_y_arcmin': 0}
+    map_settings = {'N_pix': N_pix, 'pix_size_arcmin': pix_size_arcmin, 'lmin': 2, 'lmax': 1.0e10, 'map_center_x_arcmin': 0, 'map_center_y_arcmin': 0}
     #center_x_arcmin and center_y_arcmin are coordinates of map center 
     #observational settings
     if obs_type == 'perfect':

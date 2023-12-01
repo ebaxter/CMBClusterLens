@@ -43,8 +43,6 @@ def generate_unlensed_map(ell, C_ell, map_settings):
     map_cmb = generate_map_from_Cells(ell, C_ell, map_settings)
     return map_cmb
 
-#########################################################################################################
-#Lensing map generation
 def generate_lss_kappa(ell, clkk, map_settings):
     #do we need to do this at higher resolution than the CMB map?
     """Generate a Gaussian realization of clkk"""
@@ -72,6 +70,7 @@ def generate_cluster_kappa(params, map_settings, cluster_settings, cosmo_params)
     tiny = np.where(r_map < 1E-10)[0]
     r_map[tiny] = 1E-10
     #Colossus uses kpc/h units for distances and Msun/h for mass
+    #7777 check factors of h
     #Use Colossus to get surface density
     Sigma_map = u.Msun*hubble*p.surfaceDensity(r_map*hubble*1000.)/u.kpc**2
     kappa_map = (Sigma_map/cluster_settings['Sigma_crit']).to('')
