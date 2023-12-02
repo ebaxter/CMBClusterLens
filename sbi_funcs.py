@@ -46,30 +46,32 @@ def get_sbi_posterior_plots(likelihood_data, param_type, sbi_posterior,  summary
         #observed data
         x_i = likelihood_data['obs_map_list'][triali].flatten()
         #Generate posterior samples conditioned on observed data
-        posterior_samples_unscaled = sbi_posterior.sample((num_posterior_draws_single,), x=x_i)
-        #correct for parameter scaling
-        temp_scaling = torch.ones(posterior_samples_unscaled.shape[1])
-        temp_scaling[-2:] = torch.from_numpy(param_scaling)
-        scaling_mat = torch.tile(temp_scaling, (num_posterior_draws_single,1))
-        posterior_samples = posterior_samples_unscaled*scaling_mat
 
-        #Caculate posterior mean
-        posterior_mean = torch.mean(posterior_samples, axis = 0)
-        posterior_mean_pcs = posterior_mean[:-2] #exclude the mass and concentration parameters
-        posterior_samples_Mc = posterior_samples[:,-2:] #mass and concentration parameters
-        #Convert posterior mean pcs into posterior mean unlensed CMB map
-        N_pix = x_i.shape[0]
-        N_side = int(np.sqrt(N_pix))
-        posterior_mean_map = np.matmul(posterior_mean_pcs, pcs.T).reshape(N_side,N_side)
+        if (param_type == 'map'):
+            posterior_samples_unscaled = sbi_posterior.sample((num_posterior_draws_single,), x=x_i)
+            #correct for parameter scaling
+            temp_scaling = torch.ones(posterior_samples_unscaled.shape[1])
+            temp_scaling[-2:] = torch.from_numpy(param_scaling)
+            scaling_mat = torch.tile(temp_scaling, (num_posterior_draws_single,1))
+            posterior_samples = posterior_samples_unscaled*scaling_mat
 
-        #The true unlensed map
-        map_unlensed_i = unlensed_cmb_maps[triali]
-        #The true unlensed map as represented by the PCs
-        pc_amplitudes = np.dot(map_unlensed_i.flatten(), pcs) 
-        map_unlensed_i_pc = np.matmul(pc_amplitudes, pcs.T).reshape(N_side,N_side)
+            #Caculate posterior mean
+            posterior_mean = torch.mean(posterior_samples, axis = 0)
+            posterior_mean_pcs = posterior_mean[:-2] #exclude the mass and concentration parameters
+            posterior_samples_Mc = posterior_samples[:,-2:] #mass and concentration parameters
+            #Convert posterior mean pcs into posterior mean unlensed CMB map
+            N_pix = x_i.shape[0]
+            N_side = int(np.sqrt(N_pix))
+            posterior_mean_map = np.matmul(posterior_mean_pcs, pcs.T).reshape(N_side,N_side)
+
+            #The true unlensed map
+            map_unlensed_i = unlensed_cmb_maps[triali]
+            #The true unlensed map as represented by the PCs
+            pc_amplitudes = np.dot(map_unlensed_i.flatten(), pcs) 
+            map_unlensed_i_pc = np.matmul(pc_amplitudes, pcs.T).reshape(N_side,N_side)
 
 
-    if (1):
+    if (param_type == 'map'):
         #Plot posterior mean map next to true unlensed CMB map
         fig, ax = pl.subplots(4,1, figsize = (4,14))
         ax[0].imshow(posterior_mean_map)
@@ -81,18 +83,17 @@ def get_sbi_posterior_plots(likelihood_data, param_type, sbi_posterior,  summary
         true_data = x_i.reshape(N_side,N_side)
         ax[3].imshow(true_data)
         ax[3].set_title('Observed data')
-        fig.savefig('./figs/posterior_sample_map_{}.png'.format(i))
+        fig.savefig('./figs/posterior_sample_map_{}.png'.format(triali))
 
         #Individual posterior on M and c
         fig_indiv, ax_indiv = pl.subplots(1,1)
-        ax_indiv.contourf(c200c_arr, M200c_arr, all_lnlike_mat[i,:,:], cmap='Greens')
+        ax_indiv.contourf(c200c_arr, M200c_arr, all_lnlike_mat[triali,:,:], cmap='Greens')
         ax_indiv.scatter(posterior_samples_Mc[:,1], posterior_samples_Mc[:,0], marker = 'x', color = 'red')
         ax_indiv.set_xlabel('c200c')
         ax_indiv.set_ylabel('M200c')
         ax_indiv.set_xlim(c200c_arr[0], c200c_arr[-1])
         ax_indiv.set_ylim(M200c_arr[0], M200c_arr[-1])
-        fig_indiv.savefig('./figs/posterior_indiv_sample_Mc_{}.png'.format(triali))
-
+        fig_indiv.savefig('./figs/posterior_indiv_sample_Mc_paramtype{}_{}.png'.format(param_type, triali))
 
     #Stacked posteriors
     print("Computing stacked posterior\n")
@@ -144,4 +145,5 @@ def get_sbi_posterior_plots(likelihood_data, param_type, sbi_posterior,  summary
     #match axis range to likelihood contours
     ax_stacked_contours.set_xlim(c200c_arr[0], c200c_arr[-1])
     ax_stacked_contours.set_ylim(M200c_arr[0], M200c_arr[-1])
-    fig_stacked_contours.savefig('./figs/' + 'stacked_sbi_and_likelihood.png')
+    fig_stacked_contours.savefig('./figs/' + 'stacked_sbi_and_likelihood_paramtype{}.png'.format(param_type))
+    

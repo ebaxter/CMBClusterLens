@@ -17,7 +17,7 @@ Generate mock maps, then analyze by computing likelihood across grid
 '''
 
 if __name__ == '__main__':
-    N_likelihood_calculations = 20 #how many mock data sets do we want to analyze
+    N_likelihood_calculations = 10 #how many mock data sets do we want to analyze
     suffix = '1130'
     make_plots = False
     use_pcs = False

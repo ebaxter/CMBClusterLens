@@ -7,7 +7,7 @@ import pdb
 if __name__ == '__main__':
     suffix = '1130'
 
-    N_sims = 5000 #how many sims to generate
+    N_sims = 500 #how many sims to generate
     
     param_scaling = np.array([1.0e15,1.0]) #scale all parameters by this amount (mass, concentration)
 

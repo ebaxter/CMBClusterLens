@@ -22,7 +22,7 @@ else:
     likelihood_data = None
 
 #simulation data for training SBI
-data_filename = 'sims_lensingtypesimple_scaled_generatefromcovTrue_Nsims5000_Npix16_1130.npz'
+data_filename = 'sims_lensingtypesimple_scaled_generatefromcovTrue_Nsims500_Npix16_1130.npz'
 sim_data = np.load('./sims/' + data_filename, allow_pickle=True)
 data_obs = sim_data['data']
 param_scaling = sim_data['param_scaling']
@@ -32,7 +32,7 @@ N_sims = sim_data['data_unlensed'].shape[0]
 mass_params = sim_data['params']
 #unlensed CMB maps for each simulation
 maps_unlensed = sim_data['data_unlensed'].reshape(N_sims, N_pix)
-if(use_pcs):
+if (use_pcs):
     print("using pcs")
     N_pcs  = 50
     #Determine the PCs
@@ -70,7 +70,7 @@ theta = torch.tensor(all_params, dtype=torch.float32)
 x = torch.from_numpy(data_obs.reshape(N_sims, N_pix)).float()
 
 inference.append_simulations(theta, x)
-density_estimator = inference.train(max_num_epochs=500)
+density_estimator = inference.train(max_num_epochs=3)
 posterior = inference.build_posterior(density_estimator)
 
 #Make a bunch of plots

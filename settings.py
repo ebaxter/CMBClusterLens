@@ -6,7 +6,7 @@ def load_settings(settings_type = 'default'):
             'obs_type':'spt3g_nobeam',
             'z_cluster':0.5,
             'N_pix':16,
-            'pix_size_arcmin':1.0
+            'pix_size_arcmin':0.5
         }
     if settings_type == 'full':
         return_settings = {
