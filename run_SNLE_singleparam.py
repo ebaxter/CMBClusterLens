@@ -57,8 +57,8 @@ def simulator_func(params):
 
 min_M200c = 0.1e15
 max_M200c = 10.0e15
-low = torch.tensor([min_M200c/1.0e15])
-high = torch.tensor([max_M200c/1.0e15])
+low = torch.tensor([min_M200c/1.0e15], device = device)
+high = torch.tensor([max_M200c/1.0e15], device = device)
 prior = utils.BoxUniform(low=low, high=high)
 simulator, prior = prepare_for_sbi(simulator_func, prior)
 
