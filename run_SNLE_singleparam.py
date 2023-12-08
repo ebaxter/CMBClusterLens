@@ -9,6 +9,7 @@ import matplotlib.pyplot as pl
 
 from sbi.utils.get_nn_models import likelihood_nn
 
+#cluster lensing functions
 import sbi_funcs as sbi_funcs
 import likelihood_funcs
 import sim_cmb_cluster_lens as sim
@@ -16,6 +17,8 @@ import precompute
 import settings
 
 summary_type = 'none'
+device = 'cpu'
+num_sims = 500
 
 #'truth' values
 c200c_default = 4.0
@@ -45,21 +48,23 @@ def simulator_func(params):
     M200c = params[0]*1.0e15
     c200c = c200c_default
     new_params = np.array([M200c, c200c])
+    #This uses numpy arrays, not torch tensors
     lensed_map, unlensed_map = sim.generate_lensed_map(new_params, cluster_settings, map_settings, obs_settings, \
                                         spectra, cosmo_params, make_plots = False, return_unlensed = True, lensing_type = lensing_type, \
                                             generate_from_cov = generate_from_cov, likelihood_info = likelihood_info)
-
+    #convert back to torch for sbi
     return torch.from_numpy(lensed_map.flatten()).float()
 
 min_M200c = 0.1e15
-max_M200c = 5.0e15
-prior = utils.BoxUniform(low=[min_M200c/1.0e15], high=[max_M200c/1.0e15])
+max_M200c = 10.0e15
+low = torch.tensor([min_M200c/1.0e15])
+high = torch.tensor([max_M200c/1.0e15])
+prior = utils.BoxUniform(low=low, high=high)
 simulator, prior = prepare_for_sbi(simulator_func, prior)
 
 #generate simulations
-theta, x = simulate_for_sbi(simulator, proposal=prior, num_simulations=10000)
+theta, x = simulate_for_sbi(simulator, proposal=prior, num_simulations=num_sims)
 
-device = 'cpu'
 neural_likelihood =likelihood_nn(model="maf", num_transforms=10, device=device)
 inference = SNLE(prior=prior, density_estimator=neural_likelihood)
 inference.append_simulations(theta, x)
