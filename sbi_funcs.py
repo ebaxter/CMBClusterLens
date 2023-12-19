@@ -69,6 +69,8 @@ def get_sbi_posterior_plots(likelihood_data, param_type, sbi_posterior,  summary
             #The true unlensed map as represented by the PCs
             pc_amplitudes = np.dot(map_unlensed_i.flatten(), pcs) 
             map_unlensed_i_pc = np.matmul(pc_amplitudes, pcs.T).reshape(N_side,N_side)
+        elif (param_type == 'mass'):
+            posterior_samples_Mc = posterior_samples
 
 
     if (param_type == 'map'):
@@ -85,15 +87,15 @@ def get_sbi_posterior_plots(likelihood_data, param_type, sbi_posterior,  summary
         ax[3].set_title('Observed data')
         fig.savefig('./figs/posterior_sample_map_{}.png'.format(triali))
 
-        #Individual posterior on M and c
-        fig_indiv, ax_indiv = pl.subplots(1,1)
-        ax_indiv.contourf(c200c_arr, M200c_arr, all_lnlike_mat[triali,:,:], cmap='Greens')
-        ax_indiv.scatter(posterior_samples_Mc[:,1], posterior_samples_Mc[:,0], marker = 'x', color = 'red')
-        ax_indiv.set_xlabel('c200c')
-        ax_indiv.set_ylabel('M200c')
-        ax_indiv.set_xlim(c200c_arr[0], c200c_arr[-1])
-        ax_indiv.set_ylim(M200c_arr[0], M200c_arr[-1])
-        fig_indiv.savefig('./figs/posterior_indiv_sample_Mc_paramtype{}_{}.png'.format(param_type, triali))
+    #Individual posterior on M and c
+    fig_indiv, ax_indiv = pl.subplots(1,1)
+    ax_indiv.contourf(c200c_arr, M200c_arr, all_lnlike_mat[triali,:,:], cmap='Greens')
+    ax_indiv.scatter(posterior_samples_Mc[:,1], posterior_samples_Mc[:,0], marker = 'x', color = 'red')
+    ax_indiv.set_xlabel('c200c')
+    ax_indiv.set_ylabel('M200c')
+    ax_indiv.set_xlim(c200c_arr[0], c200c_arr[-1])
+    ax_indiv.set_ylim(M200c_arr[0], M200c_arr[-1])
+    fig_indiv.savefig('./figs/posterior_indiv_sample_Mc_paramtype{}_{}.png'.format(param_type, triali))
 
     #Stacked posteriors
     print("Computing stacked posterior\n")
@@ -146,4 +148,4 @@ def get_sbi_posterior_plots(likelihood_data, param_type, sbi_posterior,  summary
     ax_stacked_contours.set_xlim(c200c_arr[0], c200c_arr[-1])
     ax_stacked_contours.set_ylim(M200c_arr[0], M200c_arr[-1])
     fig_stacked_contours.savefig('./figs/' + 'stacked_sbi_and_likelihood_paramtype{}.png'.format(param_type))
-    
+    pdb.set_trace()

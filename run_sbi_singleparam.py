@@ -18,7 +18,7 @@ import settings
 N_pix = 6
 summary_type = 'none'
 device = 'cpu'
-num_sims = 5000
+num_sims = 10000
 method = 'SNRE'
 
 #'truth' values
@@ -78,45 +78,99 @@ theta, x = simulate_for_sbi(simulator, proposal=prior, num_simulations=num_sims)
 #add the simulations to the inference object
 inference.append_simulations(theta, x)
 
-
+#train the density estimator
 density_estimator = inference.train(max_num_epochs=1000)
 
 #build the posterior
 posterior = inference.build_posterior(density_estimator)
 
-#Compare to likelihood calculation
-num_M200c = 50 #number of M200c values to evaluate
-M200c_arr = torch.linspace(min_M200c, max_M200c, num_M200c)
-N_trials = 10
-true_lnlike_mat = np.zeros((N_trials, num_M200c))
-sbi_lnlike_mat = np.zeros((N_trials, num_M200c))
-for triali in range(0, N_trials):
-    #Generate a mock data set with default mass
-    x_0 = simulator_func(torch.tensor([M200c_default/1.0e15]).float())
-    #Analyze using exact likelihood
-    #Get likelihood
-    for mi in range(0, len(M200c_arr)):
-        params = np.array([M200c_arr[mi], c200c_default])
-        use_pcs = False
-        lnlike, term1, term2 = likelihood_funcs.lnlikelihood(params, cluster_settings, map_settings, obs_settings, spectra, \
-                            cosmo_params, likelihood_info, x_0, use_pcs = use_pcs)
-        true_lnlike_mat[triali, mi] = lnlike
-    #Get SBI estimate of likelihood
-    sbi_density = posterior.log_prob(M200c_arr[:,None]/1.0e15, x=x_0) 
-    #put into matrix
-    sbi_lnlike_mat[triali, :,] = sbi_density
+def get_mean_std(x, lnPx):
+    #Given a PDF, compute its mean and standard deviation
+    dx = x[1:]-x[:-1]
+    Px = np.exp(lnPx - np.max(lnPx))
+    norm = np.sum(0.5*dx*(Px[1:] + Px[:-1]))
+    Px = Px/norm
+    mean_integrand = x*Px
+    mean = np.sum(0.5*dx*(mean_integrand[1:] + mean_integrand[:-1]))
+    std_integrand = (x-mean)**2*Px
+    std = np.sqrt(np.sum(0.5*dx*(std_integrand[1:] + std_integrand[:-1])))
+    return mean, std
 
-#Plot results
-stacked_sbi_lnlike = np.sum(sbi_lnlike_mat, axis = 0)
-stacked_sbi_lnlike = stacked_sbi_lnlike - np.max(stacked_sbi_lnlike)
-stacked_true_lnlike = np.sum(true_lnlike_mat, axis = 0)
-stacked_true_lnlike = stacked_true_lnlike - np.max(stacked_true_lnlike)
-fig, ax = pl.subplots(1,1, figsize = (6,6))
-ax.plot(M200c_arr, np.exp(stacked_true_lnlike), label = 'True likelihood', lw = 3)
-ax.plot(M200c_arr, np.exp(stacked_sbi_lnlike), label = 'SBI, method = ' + method, lw = 3)
-ax.plot([M200c_default, M200c_default], [0., 1.], label = 'True mass')
+#Useful for plots
+def get_stacked_posteriors(N_trials, M200c_true):
+    #Generate N_trials mock data sets corresponding to M200c_true
+    #then analyze this using the likelihood and SBI
+    #return the stacked likelihoods and the mean and std of the mass estimates
+    num_M200c = 50 #number of M200c values to evaluate likelihood at
+    M200c_arr = torch.linspace(min_M200c, max_M200c, num_M200c)
+    true_lnlike_mat = np.zeros((N_trials, num_M200c))
+    sbi_lnlike_mat = np.zeros((N_trials, num_M200c))
+    for triali in range(0, N_trials):
+        #Generate a mock data set with default mass
+        x_0 = simulator_func(torch.tensor([M200c_true/1.0e15]).float())
+        #Analyze using exact likelihood
+        #Get likelihood
+        for mi in range(0, len(M200c_arr)):
+            params = np.array([M200c_arr[mi], c200c_default])
+            use_pcs = False
+            lnlike, term1, term2 = likelihood_funcs.lnlikelihood(params, cluster_settings, map_settings, obs_settings, spectra, \
+                                cosmo_params, likelihood_info, x_0, use_pcs = use_pcs)
+            true_lnlike_mat[triali, mi] = lnlike
+        #Get SBI estimate of likelihood
+        sbi_density = posterior.log_prob(M200c_arr[:,None]/1.0e15, x=x_0) 
+        #put into matrix
+        sbi_lnlike_mat[triali, :,] = sbi_density
+        #Get mean and variance from stacked likelihoods
+        dM = M200c_arr[1:]-M200c_arr[:-1]
+        stacked_sbi_lnlike = np.sum(sbi_lnlike_mat, axis = 0)
+        stacked_true_lnlike = np.sum(true_lnlike_mat, axis = 0)
+        mean_sbi, std_sbi = get_mean_std(M200c_arr.numpy(), stacked_sbi_lnlike)
+        mean_like, std_like = get_mean_std(M200c_arr.numpy(), stacked_true_lnlike)
+
+    stacked_sbi_like = np.exp(stacked_sbi_lnlike - np.max(stacked_sbi_lnlike))
+    stacked_true_like = np.exp(stacked_true_lnlike - np.max(stacked_true_lnlike))
+
+
+    return M200c_arr, stacked_sbi_like, stacked_true_like, \
+        mean_sbi, std_sbi, \
+        mean_like, std_like
+print("starting plot 1")
+#Plot 1: stacked likelihood and plot for a single set of 10 clusters
+N_clusters = 20
+M200c_arr, stacked_sbi_like, stacked_true_like, _, _, _, _ = get_stacked_posteriors(N_clusters, M200c_default)
+fig, ax = pl.subplots(1,1, figsize = (8,6))
+ax.plot(M200c_arr, stacked_sbi_like, label = r'${\rm SBI}$', lw = 3, color = 'dodgerblue')
+ax.plot(M200c_arr, stacked_true_like, label = r'${\rm Exact\,Likelihood}$', lw = 3, ls = 'dashed', color = 'orangered')
+ax.plot([M200c_default, M200c_default], [0., 1.], label = r'${\rm True\,mass}$', color = 'black', lw = 3, ls = 'dotted')
 ax.set_xlabel('M200c')
 ax.set_ylabel('lnlike')
-ax.legend()
+ax.legend(fontsize = 14)
 fig.savefig('./figs/SBI_massonly_Npix{}_Nsims{}_method{}.png'.format(N_pix, num_sims, method))
 
+'''
+print("starting plot 2")
+# Plot 2: Trials at different 'truth' masses.
+# For each trial, we generate mock data and anayze using likelihood and SBI.
+# Then we compute corresponding mean and std.
+num_true_mass = 20
+true_mass_arr = np.linspace(min_M200c, max_M200c, num_true_mass)
+mean_M200c_sbi_arr = np.zeros(num_true_mass)
+std_M200c_sbi_arr = np.zeros(num_true_mass)
+mean_M200c_like_arr = np.zeros(num_true_mass)
+std_M200c_like_arr = np.zeros(num_true_mass)
+for ti in range(0,num_true_mass):
+    _, _, _, mean_sbi, std_sbi, mean_like, std_like = get_stacked_posteriors(N_clusters, true_mass_arr[ti])
+    mean_M200c_sbi_arr[ti] = mean_sbi
+    std_M200c_sbi_arr[ti] = std_sbi
+    mean_M200c_like_arr[ti] = mean_like
+    std_M200c_like_arr[ti] = std_like
+
+#Plot 2: mean and std of mass estimates as a function of true mass
+fig, ax = pl.subplots(1,1, figsize = (8,6))
+ax.errorbar(true_mass_arr, mean_M200c_sbi_arr, yerr = std_M200c_sbi_arr, label = r'${\rm SBI}$', lw = 3, color = 'dodgerblue', capsize = 3)
+ax.errorbar(true_mass_arr+8.0e13, mean_M200c_like_arr, yerr = std_M200c_like_arr, label = r'${\rm Exact\,Likelihood}$', lw = 3, ls = 'dashed', color = 'orangered', capsize = 3)
+ax.set_xlabel(r'${\rm True\,M200c}$')
+ax.legend()
+ax.plot([0., 0.], [1.0e16, 1.0e16], color= 'black')
+fig.savefig('./figs/SBI_multi_massonly_Npix{}_Nsims{}_method{}.png'.format(N_pix, num_sims, method))
+'''

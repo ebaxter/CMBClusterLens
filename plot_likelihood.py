@@ -2,7 +2,7 @@ import matplotlib.pyplot as pl
 import numpy as np
 import pickle as pk
 
-likelihood_grid_filename = 'likelihood_grid_Npix16_generatefromcovTrue_usepcsFalse_1130_num20.pk'
+likelihood_grid_filename = 'likelihood_grid_Npix32_generatefromcovTrue_usepcsFalse_1130_num5.pk'
 likelihood_data = pk.load(open('./likelihood_grids/' + likelihood_grid_filename, 'rb'))
 M200c_arr = likelihood_data['M200c_arr']
 c200c_arr = likelihood_data['c200c_arr']

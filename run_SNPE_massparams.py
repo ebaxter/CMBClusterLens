@@ -4,9 +4,12 @@ import pickle as pk
 import torch
 from sbi import utils as utils
 from sbi.inference import SNPE, prepare_for_sbi
+from sbi.inference.base import infer
+
 
 #for embedding net
 import torch.nn as nn
+import torch.nn.functional as F
 
 import sbi_funcs as sbi_funcs
 
@@ -17,7 +20,7 @@ import matplotlib.pyplot as pl
 summary_type = 'none'
 
 #load simulation data for training SBI
-data_filename = 'sims_lensingtypesimple_scaled_generatefromcovTrue_Nsims500_Npix16_1130.npz'
+data_filename = 'sims_lensingtypesimple_scaled_generatefromcovTrue_Nsims2000_Npix32_1202.npz'
 sim_data = np.load('./sims/' + data_filename, allow_pickle=True)
 #parameter values for each simulation
 params = sim_data['params']
@@ -30,15 +33,14 @@ param_scaling = sim_data['param_scaling']
 #parameters corresponding to each simulation
 theta = torch.tensor(sim_data['params'], dtype=torch.float32)
 
-##############################################################################################################################
+#SNPE #############################################################################################################################
 #Train the SBI model
 #set up sbi priors
 prior = utils.BoxUniform(low=param_min, high=param_max)
 
 device = 'cpu'
-neural_posterior = utils.posterior_nn(model="maf", hidden_features=5, num_transforms=3, device=device)
+neural_posterior = utils.posterior_nn(model="maf", hidden_features=10, num_transforms=2, device=device)
 
-'''
 #For embedding net
 class SummaryNet(nn.Module):
     def __init__(self):
@@ -57,23 +59,23 @@ class SummaryNet(nn.Module):
         x = F.relu(self.fc(x))
         return x
 
-
 #See https://sbi-dev.github.io/sbi/tutorial/05_embedding_net/
 embedding_net = SummaryNet()
 # instantiate the neural density estimator
+
 neural_posterior = utils.posterior_nn(
     model="maf", embedding_net=embedding_net, hidden_features=10, num_transforms=2
 )
-'''
 
 inference = SNPE(prior=prior,density_estimator=neural_posterior)
 x = torch.tensor(data, dtype=torch.float32)
 inference.append_simulations(theta, x)
-density_estimator = inference.train(max_num_epochs=3)
+density_estimator = inference.train(max_num_epochs=1000)
 posterior = inference.build_posterior(density_estimator)
 
+#Compare to likelihood calculation
 #load likelihood grid data (mock data sets, true parameter values, and corresponding likelihood grids in M200, c200 space)
-likelihood_grid_filename = 'likelihood_grid_Npix16_generatefromcovTrue_usepcsFalse_1130_num20.pk'
+likelihood_grid_filename = 'likelihood_grid_Npix32_generatefromcovTrue_usepcsFalse_1130_num5.pk'
 likelihood_data = pk.load(open('./likelihood_grids/' + likelihood_grid_filename, 'rb'))
 all_lnlike_mat = np.asarray(likelihood_data['lnlike_mat_list'])
 M200c_arr = likelihood_data['M200c_arr']
@@ -81,5 +83,5 @@ c200c_arr = likelihood_data['c200c_arr']
 num_M200c = len(M200c_arr)
 num_c200c = len(c200c_arr)
 
-#Generate plots of SBI posteriors and comparison to likelihood
-sbi_funcs.get_sbi_posterior_plots(likelihood_data, 'mass', posterior, param_scaling=param_scaling)
+#Generate plots of SBI posteriors and comparison to exact likelihood
+#sbi_funcs.get_sbi_posterior_plots(likelihood_data, 'mass', posterior, param_scaling=param_scaling)

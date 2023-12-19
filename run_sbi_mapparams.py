@@ -22,7 +22,7 @@ else:
     likelihood_data = None
 
 #simulation data for training SBI
-data_filename = 'sims_lensingtypesimple_scaled_generatefromcovTrue_Nsims500_Npix16_1130.npz'
+data_filename = 'sims_lensingtypesimple_scaled_generatefromcovTrue_Nsims5000_Npix16_1130.npz'
 sim_data = np.load('./sims/' + data_filename, allow_pickle=True)
 data_obs = sim_data['data']
 param_scaling = sim_data['param_scaling']
