@@ -15,6 +15,11 @@ from astropy import units as u
 
 
 from colossus.halo import profile_nfw
+from colossus.halo import profile_composite
+from colossus.halo import concentration
+from colossus.lss import bias
+
+
 
 #da are angular diameter distances
 #chi are comoving distances
@@ -50,31 +55,49 @@ def generate_lss_kappa(ell, clkk, map_settings):
     return lensing_map_lss
     
 def generate_cluster_kappa(params, map_settings, cluster_settings, cosmo_params):
-    hubble = cosmo_params['H0']/100.
-    M200c = params[0]
-    c200c = params[1]
-
-    if M200c == 0.:
-        return np.zeros((map_settings['N_pix'], map_settings['N_pix']))
-    
-    #Colossus calculation of lensing profile
-    p = profile_nfw.NFWProfile(M = M200c*hubble, mdef = '200c', \
-                               z = cluster_settings['z_cluster'], c = c200c)
-
-    #This could be sped up by building interpolation function for lensing profile
     #Set up coordinate maps
     thetax_map, thetay_map = map_funcs.get_theta_maps(map_settings)
     theta_map = np.sqrt(thetax_map**2. + thetay_map**2.)
+    #Colossus uses kpc/h units for distances and Msun/h for mass
     #Physical separation from cluster center
     r_map = theta_map*cluster_settings['dA_L'].to('Mpc').value
     tiny = np.where(r_map < 1E-10)[0]
     r_map[tiny] = 1E-10
-    #Colossus uses kpc/h units for distances and Msun/h for mass
-    #7777 check factors of h
-    #Use Colossus to get surface density
-    Sigma_map = u.Msun*hubble*p.surfaceDensity(r_map*hubble*1000.)/u.kpc**2
-    kappa_map = (Sigma_map/cluster_settings['Sigma_crit']).to('')
-    return kappa_map
+
+    #If we've precomputed cluster kappa as function of M and r, then use that
+    if 'cluster_kappa_interp_func' in cluster_settings:
+        kappa_map = cluster_settings['cluster_kappa_interp_func'](M200c, r_map)
+        #otherwise, do full calculation
+    else:
+        hubble = cosmo_params['H0']/100.
+        M200c = params[0]
+        c200c = params[1]
+        #handle case where M200c = 0
+        if M200c == 0.:
+            return np.zeros((map_settings['N_pix'], map_settings['N_pix']))
+
+        #If c200c < 0, then use concentration-mass relation to fix concentration
+        if c200c < 0.:
+            hubble = cosmo_params['H0']/100.
+            c200c = concentration.concentration(M200c*hubble, '200c', cluster_settings['z_cluster'], model = 'diemer19')
+
+        #Set up Colossus profile object
+        pure_NFW = True
+        if pure_NFW:
+            p = profile_nfw.NFWProfile(M = M200c*hubble, mdef = '200c', \
+                                    z = cluster_settings['z_cluster'], c = c200c)
+        else:
+            #NFW + outer profile
+            halo_bias = bias.haloBias(M200c*hubble, model = 'tinker10', z = cluster_settings['z_cluster'], mdef = '200c')
+            p = profile_composite.compositeProfile('nfw', outer_names = ['mean', 'cf'],
+                M = M200c*hubble, mdef = '200c', z = cluster_settings['z_cluster'], c = c200c, bias = halo_bias)             
+        #Use Colossus to get surface density 
+        max_r_interpolate = 20.*1000.*hubble #only integrate out to 20 Mpc when computing projected density
+        Sigma_arr = u.Msun*hubble*p.surfaceDensity(r_map.flatten()*hubble*1000, max_r_interpolate = max_r_interpolate)/u.kpc**2
+        Sigma_map = Sigma_arr.reshape(map_settings['N_pix'], map_settings['N_pix'])
+        #Convert to kappa
+        kappa_map = (Sigma_map/cluster_settings['Sigma_crit']).to('')
+        return kappa_map
 
 def generate_lensed_map(params, cluster_settings, map_settings, obs_settings, spectra, \
                         cosmo_params, make_plots = False, return_unlensed = False, lensing_type = 'full', \

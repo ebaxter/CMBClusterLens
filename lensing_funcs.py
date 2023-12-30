@@ -29,13 +29,10 @@ def lens_map(map_in, kappa_map, map_settings, make_plots = False):
     """Lenses a map by a lensing field."""
     Npix = map_settings['N_pix']
     #Get deflection field maps
-    ta = time.time()
     Dx, Dy = get_deflection_from_kappa(kappa_map, map_settings)
     x_map, y_map = map_funcs.get_theta_maps(map_settings)
     x_side, y_side = x_map[0,:], y_map[:,0]
-    tb = time.time()
     unlensed_spline = interp.RectBivariateSpline(x_side, y_side, map_in, kx = 5, ky = 5)
-    tc = time.time()
 
     #evaluate interpolation function at undeflected pixel positions
     newx = (x_map + Dx).flatten()

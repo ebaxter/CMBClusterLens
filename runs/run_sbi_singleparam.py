@@ -17,7 +17,7 @@ import sbi_funcs as sbi_funcs
 import likelihood_funcs
 import sim_cmb_cluster_lens as sim
 import precompute
-import settings
+import settings as settings_mod
 
 N_pix = 6
 device = 'cpu'
@@ -25,15 +25,15 @@ num_sims = 10000
 method = 'SNRE'
 
 #'truth' values
-c200c_default = 4.0
 M200c_default = 3.0e15
-settings = settings.load_settings()
+c200c_default = -1# Setting this to be negative ==> concentration computed from mass using M-c relation
+settings = settings_mod.load_settings()
 settings['N_pix'] = N_pix
 pix_size_arcmin = settings['pix_size_arcmin']
 generate_from_cov = settings['generate_from_cov']
 
 lensing_type_train = 'simple'
-lensing_type_test = 'full'
+lensing_type_test = 'simple'
 
 obs_type = settings['obs_type']
 z_cluster = settings['z_cluster']
@@ -42,6 +42,7 @@ z_cluster = settings['z_cluster']
 #need prep likelihood if generating from cov
 all_settings = precompute.prepare_analysis(z_cluster, prep_likelihood = True, obs_type = obs_type, N_pix = N_pix, pix_size_arcmin = pix_size_arcmin)
 print("Analysis ready to go")
+
 cluster_settings = all_settings['cluster_settings']
 map_settings = all_settings['map_settings']
 obs_settings = all_settings['obs_settings']
@@ -64,9 +65,9 @@ def simulator_func_train(params):
 def simulator_func_test(params):
     M200c = params[0]*1.0e15
     c200c = c200c_default
-    new_params = np.array([M200c, c200c])
+    mass_and_concentration = np.array([M200c, c200c])
     #This uses numpy arrays, not torch tensors
-    lensed_map, unlensed_map = sim.generate_lensed_map(new_params, cluster_settings, map_settings, obs_settings, \
+    lensed_map, unlensed_map = sim.generate_lensed_map(mass_and_concentration, cluster_settings, map_settings, obs_settings, \
                                         spectra, cosmo_params, make_plots = False, return_unlensed = True, lensing_type = lensing_type_test, \
                                             generate_from_cov = generate_from_cov, likelihood_info = likelihood_info)
     #convert to torch for sbi
@@ -151,20 +152,22 @@ def get_stacked_posteriors(N_trials, M200c_true):
     return M200c_arr, stacked_sbi_like, stacked_true_like, \
         mean_sbi, std_sbi, \
         mean_like, std_like
+
+
+#Make plots
 print("starting plot 1")
-#Plot 1: stacked likelihood and plot for a single set of 10 clusters
+#Plot 1: stacked likelihood and plot for a single set of N_clusters clusters
 N_clusters = 20
 M200c_arr, stacked_sbi_like, stacked_true_like, _, _, _, _ = get_stacked_posteriors(N_clusters, M200c_default)
 fig, ax = pl.subplots(1,1, figsize = (8,6))
 ax.plot(M200c_arr, stacked_sbi_like, label = r'${\rm SBI}$', lw = 3, color = 'dodgerblue')
 ax.plot(M200c_arr, stacked_true_like, label = r'${\rm Exact\,Likelihood}$', lw = 3, ls = 'dashed', color = 'orangered')
 ax.plot([M200c_default, M200c_default], [0., 1.], label = r'${\rm True\,mass}$', color = 'black', lw = 3, ls = 'dotted')
-ax.set_xlabel('M200c')
-ax.set_ylabel('lnlike')
+ax.set_xlabel(r'$M_{200c}$')
+ax.set_ylabel(r'$\mathcal{L}(M_{200c})$')
 ax.legend(fontsize = 14)
-fig.savefig('./figs/SBI_massonly_Npix{}_Nsims{}_method{}_train{}_test{}.png'.format(N_pix, num_sims, method, lensing_type_train, lensing_type_test))
+fig.savefig('./figs/SBI_massonly_Npix{}_Nsims{}_method{}_train{}_test{}.pdf'.format(N_pix, num_sims, method, lensing_type_train, lensing_type_test))
 
-'''
 print("starting plot 2")
 # Plot 2: Trials at different 'truth' masses.
 # For each trial, we generate mock data and anayze using likelihood and SBI.
@@ -186,8 +189,7 @@ for ti in range(0,num_true_mass):
 fig, ax = pl.subplots(1,1, figsize = (8,6))
 ax.errorbar(true_mass_arr, mean_M200c_sbi_arr, yerr = std_M200c_sbi_arr, label = r'${\rm SBI}$', lw = 3, color = 'dodgerblue', capsize = 3)
 ax.errorbar(true_mass_arr+8.0e13, mean_M200c_like_arr, yerr = std_M200c_like_arr, label = r'${\rm Exact\,Likelihood}$', lw = 3, ls = 'dashed', color = 'orangered', capsize = 3)
-ax.set_xlabel(r'${\rm True\,M200c}$')
-ax.legend()
+ax.set_xlabel(r'${\rm True\,M200c}$', fontsize = 14)
+ax.legend(fontsize = 14)
 ax.plot([0., 0.], [1.0e16, 1.0e16], color= 'black')
-fig.savefig('./figs/SBI_multi_massonly_Npix{}_Nsims{}_method{}.png'.format(N_pix, num_sims, method))
-'''
+fig.savefig('./figs/SBI_multi_massonly_Npix{}_Nsims{}_method{}_train{}_test{}.pdf'.format(N_pix, num_sims, method, lensing_type_train, lensing_type_test))
