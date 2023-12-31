@@ -24,18 +24,27 @@ device = 'cpu'
 num_sims = 10000
 method = 'SNRE'
 
+#analysis = 'agreementwithexactlikelihood' 
+analysis = 'full generality'
+print("Analysis = ", analysis)
+
 #'truth' values
 M200c_default = 3.0e15
 c200c_default = -1# Setting this to be negative ==> concentration computed from mass using M-c relation
+if analysis == 'agreementwithexactlikelihood':
+    obs_type = 'spt3g_nobeam'
+    lensing_type_train = 'simple'
+    lensing_type_test = 'simple'
+elif analysis == 'full generality':
+    obs_type = 'spt3g'
+    lensing_type_train = 'full'
+    lensing_type_test = 'full'
 settings = settings_mod.load_settings()
 settings['N_pix'] = N_pix
 pix_size_arcmin = settings['pix_size_arcmin']
 generate_from_cov = settings['generate_from_cov']
 
-lensing_type_train = 'simple'
-lensing_type_test = 'simple'
-
-obs_type = settings['obs_type']
+settings['obs_type'] = obs_type
 z_cluster = settings['z_cluster']
 
 #Run all the slow calculations (e.g. cosmology stuff, power spectra)
@@ -166,7 +175,7 @@ ax.plot([M200c_default, M200c_default], [0., 1.], label = r'${\rm True\,mass}$',
 ax.set_xlabel(r'$M_{200c}$')
 ax.set_ylabel(r'$\mathcal{L}(M_{200c})$')
 ax.legend(fontsize = 14)
-fig.savefig('./figs/SBI_massonly_Npix{}_Nsims{}_method{}_train{}_test{}.pdf'.format(N_pix, num_sims, method, lensing_type_train, lensing_type_test))
+fig.savefig('./figs/SBI_massonly_Npix{}_Nsims{}_method{}_train{}_test{}_obstype{}.pdf'.format(N_pix, num_sims, method, lensing_type_train, lensing_type_test, obs_type))
 
 print("starting plot 2")
 # Plot 2: Trials at different 'truth' masses.
@@ -191,5 +200,9 @@ ax.errorbar(true_mass_arr, mean_M200c_sbi_arr, yerr = std_M200c_sbi_arr, label =
 ax.errorbar(true_mass_arr+8.0e13, mean_M200c_like_arr, yerr = std_M200c_like_arr, label = r'${\rm Exact\,Likelihood}$', lw = 3, ls = 'dashed', color = 'orangered', capsize = 3)
 ax.set_xlabel(r'${\rm True\,M200c}$', fontsize = 14)
 ax.legend(fontsize = 14)
-ax.plot([0., 0.], [1.0e16, 1.0e16], color= 'black')
-fig.savefig('./figs/SBI_multi_massonly_Npix{}_Nsims{}_method{}_train{}_test{}.pdf'.format(N_pix, num_sims, method, lensing_type_train, lensing_type_test))
+ax.plot([0., 2.0e16], [0., 2.0e16], color= 'black', ls = 'dotted')
+ax.set_xlim([0., 1.1e16])
+ax.set_ylim([0., 1.1e16])
+fig_filename = 'SBI_multi_massonly_Npix{}_Nsims{}_method{}_train{}_test{}.pdf'.format(N_pix, num_sims, method, lensing_type_train, lensing_type_test)
+fig.savefig('./figs/' + fig_filename)
+pdb.set_trace()
