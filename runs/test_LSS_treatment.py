@@ -14,7 +14,7 @@ import sim_cmb_cluster_lens as sim
 import likelihood_funcs
 import obs_funcs
 
-N_pix =  16
+N_pix =  32
 z_cluster = 0.5
 
 settings = settings_mod.load_settings()
@@ -53,7 +53,8 @@ if not generate_from_cov:
 cluster_kappa = sim.generate_cluster_kappa(params, map_settings, cluster_settings, cosmo_params)
 lss_highz_kappa = sim.generate_lss_kappa(spectra['bigell'], spectra['clpp_highz'], map_settings) 
 lss_lowz_kappa = sim.generate_lss_kappa(spectra['bigell'],  spectra['clpp_lowz'], map_settings)
-# Lens the unlensed map by LSS at higher z than cluster
+
+# Lens the unlensed map by LSS at higher z than cluster, then lens by cluster, then lens by LSS at lower z than cluster
 map_at_cluster = lensing_funcs.lens_map(map_unl, lss_highz_kappa, map_settings) 
 map_after_cluster = lensing_funcs.lens_map(map_at_cluster, cluster_kappa, map_settings, make_plots = False)
 map_at_telescope = lensing_funcs.lens_map(map_after_cluster, lss_lowz_kappa, map_settings)
@@ -69,11 +70,12 @@ map_obs = map_at_telescope + noise
 map_obs_alt = map_at_telescope_alt + noise
 
 fig, ax = pl.subplots(1, 3, figsize = (12,4))
-ax[0].imshow(map_at_telescope, vmin = -200.0, vmax = 20.0)
+ax[0].imshow(map_at_telescope, vmin = -20.0, vmax = 200.0)
 ax[0].set_title('lensed map')
-ax[1].imshow(map_at_telescope_alt, vmin = -200.0, vmax = 20.0)
+ax[1].imshow(map_at_telescope_alt, vmin = -20.0, vmax = 200.0)
 ax[1].set_title('lensed map (alt)')
-ax[2].imshow(map_at_telescope - map_at_telescope_alt, vmin = -20.0, vmax = 20.0)
+difference = map_at_telescope - map_at_telescope_alt
+ax[2].imshow(difference)
 ax[2].set_title('difference')
 fig.savefig('figs/test_lss_treatment.png')
 
@@ -81,19 +83,30 @@ fig.savefig('figs/test_lss_treatment.png')
 num_M200c = 20
 lnlike_arr = np.zeros(num_M200c)
 lnlike_arr_alt = np.zeros(num_M200c)
+lnlike_arr_alt2 = np.zeros(num_M200c)
 M200c_arr = np.linspace(1.0e14, 1.0e16, num_M200c)
 for i in range(num_M200c):
     params = np.array([M200c_arr[i], c200c_true])
     use_pcs = False
+    #baseline
     lnlike, term1, term2 = likelihood_funcs.lnlikelihood(params, cluster_settings, map_settings, obs_settings, spectra, \
                 cosmo_params, likelihood_info, map_obs, use_pcs = use_pcs)
+    #use alt map
     lnlike_alt, term1, term2 = likelihood_funcs.lnlikelihood(params, cluster_settings, map_settings, obs_settings, spectra, \
                 cosmo_params, likelihood_info, map_obs_alt, use_pcs = use_pcs)   
+    #use unlensed Cltt when computing likelihood
+    lnlike_alt2, term1, term2 = likelihood_funcs.lnlikelihood(params, cluster_settings, map_settings, obs_settings, spectra, \
+                cosmo_params, likelihood_info, map_obs_alt, use_pcs = use_pcs, use_unlensedcltt = True)   
+    
     lnlike_arr[i] = lnlike
     lnlike_arr_alt[i] = lnlike_alt 
+    lnlike_arr_alt2[i] = lnlike_alt2
+
 fig, ax = pl.subplots(1, 1, figsize = (8,4))
 ax.plot(M200c_arr, np.exp(lnlike_arr - np.max(lnlike_arr)), label ='baseline')
-ax.plot(M200c_arr, np.exp(lnlike_arr_alt - np.max(lnlike_arr_alt)), label = 'alt')
+ax.plot(M200c_arr, np.exp(lnlike_arr_alt - np.max(lnlike_arr_alt)), label = 'map where all LSS is at higher z than cluster', ls = 'dotted')
+ax.plot(M200c_arr, np.exp(lnlike_arr_alt2 - np.max(lnlike_arr_alt2)), label = 'use unlensed cltt to compute likelihood', ls = 'dashed')
 ax.legend()
+
 fig.savefig('figs/test_lss_treatment_lnlike.png')
 pdb.set_trace()

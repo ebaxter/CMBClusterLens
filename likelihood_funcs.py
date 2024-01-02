@@ -18,7 +18,7 @@ def get_cov_element(ell, C_ell, ang_sep):
 #Exact likelihood. We use unlensed CMB power spectrum to calculate covariance elements
 #We assume that lensing by LSS occurs at redshifts above the cluster
 def lnlikelihood(params, cluster_settings, map_settings, obs_settings, spectra, \
-                        cosmo_params, likelihood_info, obs_data, print_output = False, use_pcs = False):
+                        cosmo_params, likelihood_info, obs_data, print_output = False, use_pcs = False, use_unlensedcltt = False):
     if use_pcs:
         N_pcs = 5
         return lnlikelihood_pcs(params, N_pcs, cluster_settings, map_settings, obs_settings, spectra, \
@@ -28,7 +28,11 @@ def lnlikelihood(params, cluster_settings, map_settings, obs_settings, spectra, 
     cluster_kappa = sim.generate_cluster_kappa(params, map_settings, cluster_settings, cosmo_params)
     Dx, Dy = lensing_funcs.get_deflection_from_kappa(cluster_kappa, map_settings)
 
-    cov_interp_func = likelihood_info['cov_interp_func_lensed']
+    #by default, we use the lensed CMB power spectrum to calculate covariance elements
+    if use_unlensedcltt:
+        cov_interp_func = likelihood_info['cov_interp_func_unlensed']
+    else:
+        cov_interp_func = likelihood_info['cov_interp_func_lensed']
     angsep_mat = map_funcs.get_angsep_mat(x_map, y_map, Dx, Dy)
     #print("like M200 = ", params[0])
     #print("var Dx = ", np.var(Dx))

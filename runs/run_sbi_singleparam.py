@@ -24,8 +24,8 @@ device = 'cpu'
 num_sims = 10000
 method = 'SNRE'
 
-#analysis = 'agreementwithexactlikelihood' 
-analysis = 'full generality'
+analysis = 'agreementwithexactlikelihood' 
+#analysis = 'full generality'
 print("Analysis = ", analysis)
 
 #'truth' values
@@ -172,8 +172,8 @@ fig, ax = pl.subplots(1,1, figsize = (8,6))
 ax.plot(M200c_arr, stacked_sbi_like, label = r'${\rm SBI}$', lw = 3, color = 'dodgerblue')
 ax.plot(M200c_arr, stacked_true_like, label = r'${\rm Exact\,Likelihood}$', lw = 3, ls = 'dashed', color = 'orangered')
 ax.plot([M200c_default, M200c_default], [0., 1.], label = r'${\rm True\,mass}$', color = 'black', lw = 3, ls = 'dotted')
-ax.set_xlabel(r'$M_{200c}$')
-ax.set_ylabel(r'$\mathcal{L}(M_{200c})$')
+ax.set_xlabel(r'$M_{200c}\,[M_{\odot}]$', fontsize = 14)
+ax.set_ylabel(r'$\mathcal{L}(M_{200c})$', fontsize = 14)
 ax.legend(fontsize = 14)
 fig.savefig('./figs/SBI_massonly_Npix{}_Nsims{}_method{}_train{}_test{}_obstype{}.pdf'.format(N_pix, num_sims, method, lensing_type_train, lensing_type_test, obs_type))
 
@@ -198,11 +198,12 @@ for ti in range(0,num_true_mass):
 fig, ax = pl.subplots(1,1, figsize = (8,6))
 ax.errorbar(true_mass_arr, mean_M200c_sbi_arr, yerr = std_M200c_sbi_arr, label = r'${\rm SBI}$', lw = 3, color = 'dodgerblue', capsize = 3)
 ax.errorbar(true_mass_arr+8.0e13, mean_M200c_like_arr, yerr = std_M200c_like_arr, label = r'${\rm Exact\,Likelihood}$', lw = 3, ls = 'dashed', color = 'orangered', capsize = 3)
-ax.set_xlabel(r'${\rm True\,M200c}$', fontsize = 14)
+ax.set_xlabel(r'${\rm True\,M200c} \,\,[M_{\odot}]$', fontsize = 14)
+ax.set_ylabel(r'${\rm Recovered\,M200c} \,\,[M_{\odot}]$', fontsize = 14)
+
 ax.legend(fontsize = 14)
 ax.plot([0., 2.0e16], [0., 2.0e16], color= 'black', ls = 'dotted')
 ax.set_xlim([0., 1.1e16])
 ax.set_ylim([0., 1.1e16])
 fig_filename = 'SBI_multi_massonly_Npix{}_Nsims{}_method{}_train{}_test{}.pdf'.format(N_pix, num_sims, method, lensing_type_train, lensing_type_test)
 fig.savefig('./figs/' + fig_filename)
-pdb.set_trace()

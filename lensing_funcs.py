@@ -17,9 +17,9 @@ def get_deflection_from_kappa(kappa_map, map_settings):
 
     N_pix = map_settings['N_pix']
     pix_size = map_settings['pix_size_arcmin']/60.0*np.pi/180.0
-    #lensing potential
+    # kappa = (1/2) grad^2 phi
     # Warning: should this be L(L+1) instead of lsquare?
-    pfft = np.fft.fft2(kappa_map)*2./lsquare    
+    pfft = 2.*np.fft.fft2(kappa_map)/lsquare    
     #deflection = grad phi
     gpx    = np.fft.ifft2( pfft * lx * -1.j)
     gpy    = np.fft.ifft2( pfft * ly * -1.j)
