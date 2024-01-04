@@ -58,8 +58,8 @@ def test_deflection(map_settings, cluster_settings, cosmo_params):
     fig.savefig('./figs/deflection_test.png')
 
 if __name__ == '__main__':
-    #fix random seed 77777777
-    np.random.seed(seed=112345)
+    #fix random seed
+    #np.random.seed(seed=112345)
 
     make_plots = True
     #Run all the slow calculations (e.g. cosmology stuff, power spectra)

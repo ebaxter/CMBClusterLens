@@ -17,12 +17,14 @@ import sbi_funcs as sbi_funcs
 import likelihood_funcs
 import sim_cmb_cluster_lens as sim
 import precompute
-import settings as settings_mod
 
-N_pix = 6
+# How to generate the unlensed CMB
+generate_from_cov = True
+N_pix = 8
+pix_size_arcmin = 0.75
 device = 'cpu'
 num_sims = 10000
-method = 'SNRE'
+method = 'SNPE'
 
 analysis = 'agreementwithexactlikelihood' 
 #analysis = 'full generality'
@@ -30,6 +32,7 @@ print("Analysis = ", analysis)
 
 #'truth' values
 M200c_default = 3.0e15
+z_cluster = 0.5
 c200c_default = -1# Setting this to be negative ==> concentration computed from mass using M-c relation
 if analysis == 'agreementwithexactlikelihood':
     obs_type = 'spt3g_nobeam'
@@ -39,13 +42,6 @@ elif analysis == 'full generality':
     obs_type = 'spt3g'
     lensing_type_train = 'full'
     lensing_type_test = 'full'
-settings = settings_mod.load_settings()
-settings['N_pix'] = N_pix
-pix_size_arcmin = settings['pix_size_arcmin']
-generate_from_cov = settings['generate_from_cov']
-
-settings['obs_type'] = obs_type
-z_cluster = settings['z_cluster']
 
 #Run all the slow calculations (e.g. cosmology stuff, power spectra)
 #need prep likelihood if generating from cov
@@ -205,5 +201,5 @@ ax.legend(fontsize = 14)
 ax.plot([0., 2.0e16], [0., 2.0e16], color= 'black', ls = 'dotted')
 ax.set_xlim([0., 1.1e16])
 ax.set_ylim([0., 1.1e16])
-fig_filename = 'SBI_multi_massonly_Npix{}_Nsims{}_method{}_train{}_test{}.pdf'.format(N_pix, num_sims, method, lensing_type_train, lensing_type_test)
+fig_filename = 'SBI_multi_massonly_Npix{}_obstype{}_Nsims{}_method{}_train{}_test{}_wtf.pdf'.format(N_pix, obs_type, num_sims, method, lensing_type_train, lensing_type_test)
 fig.savefig('./figs/' + fig_filename)
