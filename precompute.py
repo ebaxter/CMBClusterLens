@@ -15,6 +15,7 @@ from astropy.cosmology import FlatLambdaCDM
 from camb import model
 import likelihood_funcs as likelihood
 
+#Specify the baseline cosmological parameters
 def get_baseline_cosmo_params():
     params = {'H0':67.5, 'ombh2':0.022, 'omch2':0.122, 'mnu':0.06, 'omk':0, 'tau':0.06, \
               'As':2e-9, 'ns':0.965, 'r':0}
@@ -23,13 +24,13 @@ def get_baseline_cosmo_params():
     return params
 
 def get_cosmo_astropy(params):
+    #Get the astropy cosmology object
     Omega_M = (params['ombh2']+params['omch2'])/(params['H0']/100.)**2
     cosmo_astropy = FlatLambdaCDM(params['H0'], Omega_M)
     return cosmo_astropy
 
 def update_cosmo_params(baseline_params, z_cluster):
-    #Run CAMB to get sigma8 and other cosmological parameters
-    #new set of parameters for CAMB
+    #Run CAMB to get sigma8 and other cosmological parameters, and update the cosmology dictionary
     pars = camb.CAMBparams()
     #This function sets up with one massive neutrino and helium set using BBN consistency
     pars.set_cosmology(H0 = baseline_params['H0'], ombh2 = baseline_params['ombh2'], \
@@ -42,10 +43,7 @@ def update_cosmo_params(baseline_params, z_cluster):
     pars.set_matter_power(redshifts=[0.], kmax=2.0)
                               
     results = camb.get_results(pars)
-    #Get cosmological information
     camb_params = results.get_derived_params()
-    #Get temperature and polarization power spectra
-    #     
     chi_cluster = results.comoving_radial_distance(z_cluster)
     chi_star = results.comoving_radial_distance(camb_params['zstar'])
 
@@ -134,16 +132,16 @@ def get_Cells(ell_max, bigell_max, z_cluster, cosmo_params, make_plots = False):
         win_lowz = get_cmblensing_window(z_lowz, chi_lowz, cosmo_params)
         win_highz = get_cmblensing_window(z_highz, chi_highz, cosmo_params)
 
+        # Limber integral
         integrand_lowz = Pk_lowz * win_lowz * win_lowz / chi_lowz**2
         integrand_highz = Pk_highz * win_highz * win_highz / chi_highz**2
-
         integrand_lowz[above_kmax_lowz] = 0
         integrand_highz[above_kmax_highz] = 0
-        #Do Limber integral
         cl_kappa_lowz[i] = np.sum(0.5*(integrand_lowz[1:] + integrand_lowz[:-1])*dchi_lowz)
         cl_kappa_highz[i] = np.sum(0.5*(integrand_highz[1:] + integrand_highz[:-1])*dchi_highz)
+
     #CMB primary power spectra
-    #Update to included polarization 777777
+    #Future: update to include polarization
     clTT_unlensed=powers['unlensed_scalar'][:,0]
     clTT_lensed=powers['lensed_scalar'][:,0]
     ell = np.arange(0,len(clTT_unlensed))
@@ -181,40 +179,35 @@ def get_Cells(ell_max, bigell_max, z_cluster, cosmo_params, make_plots = False):
 
 #########################################################################################################
 
-def get_cluster_settings(cosmo_astropy, z_cluster, cosmo_params):
-    #return dictionary with cluster properties
-    cluster_settings = {'z_cluster': 0.5, 'M200c': 1e14, 'c200c': 3.0}
-
-    R200c = mass_so.M_to_R(cluster_settings['M200c'], \
-                                        cluster_settings['z_cluster'], '200c')*u.kpc
-    cluster_settings['R200c'] = R200c.to('Mpc')
-    cluster_settings['Rs'] = cluster_settings['R200c']/cluster_settings['c200c']
-    cluster_settings['dA_L'] = cosmo_astropy.angular_diameter_distance(cluster_settings['z_cluster'])
-    cluster_settings['chi_L'] = cosmo_astropy.comoving_distance(cluster_settings['z_cluster'])
-
-    #coordinates of cluster center in arcmin
-    cluster_settings['cluster_center_x'] = 0.0
-    cluster_settings['cluster_center_y'] = 0.0
-
-    #Assumes flat Universe
-    dA_S = cosmo_params['chi_star']/(1+cosmo_params['z_star'])*u.Mpc
-    dA_L = cluster_settings['dA_L']
-    chi_L = cluster_settings['chi_L']
+def get_cluster_lensing_settings(z, cosmo_astropy, cosmo_params):
+    #return dictionary with quantities related to lensing
+    cluster_lensing_settings = {}
+    dA_L = cosmo_astropy.angular_diameter_distance(z)
+    chi_L = cosmo_astropy.comoving_distance(z)
     chi_S = cosmo_params['chi_star']*u.Mpc
+    #Assumes flat Universe
     z_S = cosmo_params['z_star']
+    dA_S = chi_S/(1+z_S)
     dA_LS = (chi_S - chi_L)/(1.+z_S)
-    cluster_settings['dA_LS'] = dA_LS.to('Mpc')
-    cluster_settings['dA_S'] = dA_S.to('Mpc')
 
     #Calculate Sigma_crit
     distance_ratio = dA_S/(dA_L*dA_LS)
     sigma_crit = distance_ratio*(const.c**2/(4.*np.pi*const.G))
-    cluster_settings['Sigma_crit'] = sigma_crit.to('Msun/Mpc**2')
+
+    #store in dictionary
+    cluster_lensing_settings['Sigma_crit'] = sigma_crit.to('Msun/Mpc**2')
+    cluster_lensing_settings['dA_L'] = dA_L
+    cluster_lensing_settings['dA_S'] = dA_S
+    cluster_lensing_settings['dA_LS'] = dA_LS
+    cluster_lensing_settings['z_cluster'] = z
     
-    return cluster_settings
+    return cluster_lensing_settings
 
 #Do all calculations to prepare for analysis, fixing cluster redshift
-def prepare_analysis(z_cluster, obs_type = 'spt3g_nobeam', prep_likelihood = False, make_plots = False, N_pix = 16, pix_size_arcmin = 0.5):
+def prepare_analysis(z_cluster, obs_type = 'spt3g_nobeam', prep_likelihood = False, \
+                     make_plots = False, \
+                     N_pix_CMB = 16, pix_size_arcmin_CMB = 0.75,
+                     N_pix_kappa = 512, pix_size_arcmin_kappa = 0.75):
     cosmo_params_baseline = get_baseline_cosmo_params()
     #Add in additional derived parameters
     cosmo_params = update_cosmo_params(cosmo_params_baseline, z_cluster)
@@ -222,7 +215,8 @@ def prepare_analysis(z_cluster, obs_type = 'spt3g_nobeam', prep_likelihood = Fal
     cosmo_astropy = get_cosmo_astropy(cosmo_params)
     
     #resolution settings for map and additional filtering
-    map_settings = {'N_pix': N_pix, 'pix_size_arcmin': pix_size_arcmin, 'lmin': 2, 'lmax': 1.0e10, 'map_center_x_arcmin': 0, 'map_center_y_arcmin': 0}
+    cmb_map_settings = {'N_pix': N_pix_CMB, 'pix_size_arcmin': pix_size_arcmin_CMB, 'lmin': 2, 'lmax': 1.0e10, 'map_center_x_arcmin': 0, 'map_center_y_arcmin': 0}
+    kappa_map_settings = {'N_pix': N_pix_kappa, 'pix_size_arcmin': pix_size_arcmin_kappa, 'lmin': 2, 'lmax': 1.0e10, 'map_center_x_arcmin': 0, 'map_center_y_arcmin': 0}
     #center_x_arcmin and center_y_arcmin are coordinates of map center 
     #observational settings
     if obs_type == 'perfect':
@@ -234,15 +228,16 @@ def prepare_analysis(z_cluster, obs_type = 'spt3g_nobeam', prep_likelihood = Fal
     if obs_type == 'spt3g':
         obs_settings = {'beam_fwhm_arcmin': 1.0, 'noise_mukarcmin': 5.0, 'lx_max': 1.0e10}
     #Get the CMB temperature/polarization power spectra and lensing potential power spectrum
-    #Warning: what should these be?
+    #Future: make this specifiable
     ell_max = 3000
     bigell_max = 2000
     ell, clTT_unlensed, clTT_lensed, bigell, clpp_highz, clpp_lowz = get_Cells(ell_max, bigell_max, z_cluster, cosmo_params)
     spectra = {'ell': ell, 'clTT_unlensed': clTT_unlensed, 'bigell': bigell, \
                'clpp_highz': clpp_highz, 'clpp_lowz': clpp_lowz}
     all_settings = {}
-    all_settings['cluster_settings'] = get_cluster_settings(cosmo_astropy, z_cluster, cosmo_params)
-    all_settings['map_settings'] = map_settings
+    all_settings['cluster_lensing_settings'] = get_cluster_lensing_settings(z_cluster, cosmo_astropy, cosmo_params)
+    all_settings['cmb_map_settings'] = cmb_map_settings
+    all_settings['kappa_map_settings'] = kappa_map_settings
     all_settings['obs_settings'] = obs_settings
     all_settings['spectra'] = spectra
     all_settings['cosmo_params'] = cosmo_params
@@ -263,10 +258,10 @@ def prepare_analysis(z_cluster, obs_type = 'spt3g_nobeam', prep_likelihood = Fal
 
         likelihood_info = {'cov_interp_func_unlensed':cov_interp_func_unlensed, \
                            'cov_interp_func_lensed':cov_interp_func_lensed}
-        print("likelihood_info computed")
         all_settings['likelihood_info'] = likelihood_info
     if (make_plots):
-        print("map settings = ", map_settings)
+        print("cmb map settings = ", cmb_map_settings)
+        print("kappa map settings = ", kappa_map_settings)
         print("obs settings = ", obs_settings)
         fig, ax = pl.subplots(2,1)
         l_prefactor = ell*(ell+1)/(2.*np.pi)
