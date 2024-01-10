@@ -22,9 +22,9 @@ import precompute
 generate_from_cov = True  #if false, generate from power spectrum
 
 #baseline run
-N_pix_CMB = 24  #for generating and lensing CMB maps
-N_pix_kappa = 128 #for generating kappa maps
-N_pix_sbi = 16 #for final analysis (SBI and likelihood)
+N_pix_CMB = 18  #for generating and lensing CMB maps
+N_pix_kappa = 64 #for generating kappa maps
+N_pix_sbi = 12 #for final analysis (SBI and likelihood)
 
 #fast run
 #N_pix_CMB = 12  #for generating and lensing CMB maps
@@ -35,7 +35,7 @@ N_pix_sbi = 16 #for final analysis (SBI and likelihood)
 pix_size_arcmin_CMB = 0.5
 pix_size_arcmin_kappa = 0.5
 device = 'cpu'
-num_sims = 10000
+num_sims =10000
 method = 'SNPE'
 
 analysis = 'agreementwithexactlikelihood' 
@@ -105,8 +105,9 @@ def simulator_func_test(params):
     #convert to torch for sbi
     return torch.from_numpy(lensed_map_small.flatten()).float()
 
+#range over which to generate simulations, train model, and calculate likelihood
 min_M200c = 0.01e15
-max_M200c = 1.0e15
+max_M200c = 1.0e16
 low = torch.tensor([min_M200c/1.0e15], device = device)
 high = torch.tensor([max_M200c/1.0e15], device = device)
 prior = utils.BoxUniform(low=low, high=high)
@@ -142,17 +143,19 @@ def get_mean_std(x, lnPx):
     Px = Px/norm
     mean_integrand = x*Px
     mean = np.sum(0.5*dx*(mean_integrand[1:] + mean_integrand[:-1]))
-    std_integrand = (x-mean)**2*Px
+    std_integrand = Px*(x-mean)**2
     std = np.sqrt(np.sum(0.5*dx*(std_integrand[1:] + std_integrand[:-1])))
     return mean, std
 
-#Useful for plots
 def get_stacked_posteriors(N_trials, M200c_true):
-    #Generate N_trials mock data sets corresponding to M200c_true
+    #Generate N_trials mock data sets with cluster having mass M200c_true
     #then analyze this using the likelihood and SBI
     #return the stacked likelihoods and the mean and std of the mass estimates
+
+    #Grid over which to evaluate the likelihood
     num_M200c = 30 #number of M200c values to evaluate likelihood at
-    M200c_arr = torch.linspace(min_M200c, max_M200c, num_M200c)
+    #narrower than range over which we can calculate posterior
+    M200c_arr = torch.linspace(min_M200c, 5e15, num_M200c)
     true_lnlike_mat = np.zeros((N_trials, num_M200c))
     sbi_lnlike_mat = np.zeros((N_trials, num_M200c))
     for triali in range(0, N_trials):
@@ -188,7 +191,7 @@ def get_stacked_posteriors(N_trials, M200c_true):
 #Make plots
 print("starting plot 1")
 #Plot 1: stacked likelihood and plot for a single set of N_clusters clusters
-N_clusters = 15
+N_clusters = 40
 M200c_arr, stacked_sbi_like, stacked_true_like, _, _, _, _ = get_stacked_posteriors(N_clusters, M200c_default)
 fig, ax = pl.subplots(1,1, figsize = (8,6))
 ax.plot(M200c_arr, stacked_sbi_like, label = r'${\rm SBI}$', lw = 3, color = 'dodgerblue')
@@ -196,6 +199,7 @@ ax.plot(M200c_arr, stacked_true_like, label = r'${\rm Exact\,Likelihood}$', lw =
 ax.plot([M200c_default, M200c_default], [0., 1.], label = r'${\rm True\,mass}$', color = 'black', lw = 3, ls = 'dotted')
 ax.set_xlabel(r'$M_{200c}\,[M_{\odot}]$', fontsize = 14)
 ax.set_ylabel(r'$\mathcal{L}(M_{200c})$', fontsize = 14)
+ax.set_xlim([0.1e15, 2.0e15])
 ax.legend(fontsize = 14)
 fig.savefig('./figs/SBI_massonly_NpixSBI{}_NpixCMB{}_Npixkappa{}_Nsims{}_method{}_train{}_test{}_obstype{}.pdf'\
             .format(N_pix_sbi, N_pix_CMB, N_pix_kappa, num_sims, method, lensing_type_train, lensing_type_test, obs_type))
@@ -204,8 +208,13 @@ print("starting plot 2")
 # Plot 2: Trials at different 'truth' masses.
 # For each trial, we generate mock data and anayze using likelihood and SBI.
 # Then we compute corresponding mean and std.
-num_true_mass = 20
-true_mass_arr = np.linspace(min_M200c, max_M200c, num_true_mass)
+
+#range of truth masses for plot 2.  Making this slightly narrower than range over which we calculate likelihood.
+min_M200c_true = 0.3e15
+max_M200c_true = 2.0e15
+
+num_true_mass = 10
+true_mass_arr = np.linspace(min_M200c_true, max_M200c_true, num_true_mass)
 mean_M200c_sbi_arr = np.zeros(num_true_mass)
 std_M200c_sbi_arr = np.zeros(num_true_mass)
 mean_M200c_like_arr = np.zeros(num_true_mass)
@@ -220,13 +229,14 @@ for ti in range(0,num_true_mass):
 #Plot 2: mean and std of mass estimates as a function of true mass
 fig, ax = pl.subplots(1,1, figsize = (8,6))
 ax.errorbar(true_mass_arr, mean_M200c_sbi_arr, yerr = std_M200c_sbi_arr, label = r'${\rm SBI}$', lw = 3, color = 'dodgerblue', capsize = 3)
-ax.errorbar(true_mass_arr+8.0e13, mean_M200c_like_arr, yerr = std_M200c_like_arr, label = r'${\rm Exact\,Likelihood}$', lw = 3, ls = 'dashed', color = 'orangered', capsize = 3)
+ax.errorbar(true_mass_arr+2.0e13, mean_M200c_like_arr, yerr = std_M200c_like_arr, label = r'${\rm Exact\,Likelihood}$', lw = 3, ls = 'dashed', color = 'orangered', capsize = 3)
 ax.set_xlabel(r'${\rm True\,M200c} \,\,[M_{\odot}]$', fontsize = 14)
 ax.set_ylabel(r'${\rm Recovered\,M200c} \,\,[M_{\odot}]$', fontsize = 14)
 
 ax.legend(fontsize = 14)
-ax.plot([0., 2.0e16], [0., 2.0e16], color= 'black', ls = 'dotted')
-ax.set_xlim([0., 1.1e16])
-ax.set_ylim([0., 1.1e16])
+ax.plot([0., 2.1e16], [0., 2.1e16], color= 'black', ls = 'dotted')
+ax.set_xlim([0., 1.15*max_M200c_true])
+ax.set_ylim([0., 1.15*max_M200c_true])
 fig_filename = 'SBI_multi_massonly_lowmass_NpixCMB{}_Npixkappa{}_obstype{}_Nsims{}_method{}_train{}_test{}.pdf'.format(N_pix_CMB, N_pix_kappa, obs_type, num_sims, method, lensing_type_train, lensing_type_test)
 fig.savefig('./figs/' + fig_filename)
+pdb.set_trace()
