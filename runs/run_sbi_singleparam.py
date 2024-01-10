@@ -22,9 +22,9 @@ import precompute
 generate_from_cov = True  #if false, generate from power spectrum
 
 #baseline run
-N_pix_CMB = 18  #for generating and lensing CMB maps
-N_pix_kappa = 64 #for generating kappa maps
-N_pix_sbi = 12 #for final analysis (SBI and likelihood)
+N_pix_CMB = 16 #18  #for generating and lensing CMB maps
+N_pix_kappa = 32 #64 #for generating kappa maps
+N_pix_sbi = 8 #8 #for final analysis (SBI and likelihood)
 
 #fast run
 #N_pix_CMB = 12  #for generating and lensing CMB maps
@@ -35,11 +35,11 @@ N_pix_sbi = 12 #for final analysis (SBI and likelihood)
 pix_size_arcmin_CMB = 0.5
 pix_size_arcmin_kappa = 0.5
 device = 'cpu'
-num_sims =10000
+num_sims =20000
 method = 'SNPE'
 
-analysis = 'agreementwithexactlikelihood' 
-#analysis = 'full generality'
+#analysis = 'agreementwithexactlikelihood' 
+analysis = 'full generality'
 print("Analysis = ", analysis)
 
 #'truth' values
@@ -47,11 +47,11 @@ M200c_default = 1.0e15
 z_cluster = 0.5
 c200c_default = -1# Setting this to be negative ==> concentration computed from mass using M-c relation
 if analysis == 'agreementwithexactlikelihood':
-    obs_type = 'spt3g_nobeam'
+    obs_type = 'S4_nobeam'
     lensing_type_train = 'simple'
     lensing_type_test = 'simple'
 elif analysis == 'full generality':
-    obs_type = 'spt3g'
+    obs_type = 'S4'
     lensing_type_train = 'full'
     lensing_type_test = 'full'
 
@@ -153,7 +153,7 @@ def get_stacked_posteriors(N_trials, M200c_true):
     #return the stacked likelihoods and the mean and std of the mass estimates
 
     #Grid over which to evaluate the likelihood
-    num_M200c = 30 #number of M200c values to evaluate likelihood at
+    num_M200c = 60 #number of M200c values to evaluate likelihood at
     #narrower than range over which we can calculate posterior
     M200c_arr = torch.linspace(min_M200c, 5e15, num_M200c)
     true_lnlike_mat = np.zeros((N_trials, num_M200c))
@@ -191,7 +191,7 @@ def get_stacked_posteriors(N_trials, M200c_true):
 #Make plots
 print("starting plot 1")
 #Plot 1: stacked likelihood and plot for a single set of N_clusters clusters
-N_clusters = 40
+N_clusters = 20
 M200c_arr, stacked_sbi_like, stacked_true_like, _, _, _, _ = get_stacked_posteriors(N_clusters, M200c_default)
 fig, ax = pl.subplots(1,1, figsize = (8,6))
 ax.plot(M200c_arr, stacked_sbi_like, label = r'${\rm SBI}$', lw = 3, color = 'dodgerblue')

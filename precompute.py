@@ -227,6 +227,11 @@ def prepare_analysis(z_cluster, obs_type = 'spt3g_nobeam', prep_likelihood = Fal
         obs_settings = {'beam_fwhm_arcmin': 1e-9, 'noise_mukarcmin': 15.0, 'lx_max': 1.0e10}
     if obs_type == 'spt3g':
         obs_settings = {'beam_fwhm_arcmin': 1.0, 'noise_mukarcmin': 5.0, 'lx_max': 1.0e10}
+    if obs_type == 'S4':
+        obs_settings = {'beam_fwhm_arcmin': 1.0, 'noise_mukarcmin': 1.0, 'lx_max': 1.0e10}
+    if obs_type == 'S4_nobeam':
+        obs_settings = {'beam_fwhm_arcmin': 1e-9, 'noise_mukarcmin': 1.0, 'lx_max': 1.0e10}
+            
     #Get the CMB temperature/polarization power spectra and lensing potential power spectrum
     #Future: make this specifiable
     ell_max = 3000
